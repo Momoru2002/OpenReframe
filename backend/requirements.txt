@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pillow
+opencv-python
+python-multipart
+redis
+rq
