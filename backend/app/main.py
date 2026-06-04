@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.api.images import router as image_router
 
 app = FastAPI(
     title="OpenReframe",
@@ -16,3 +17,5 @@ def health():
     return {
         "status": "healthy"
     }
+
+app.include_router(image_router)
