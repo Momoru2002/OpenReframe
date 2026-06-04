@@ -1,3 +1,8 @@
-node_modules/
+# Python
+.venv/
 __pycache__/
-.env
+*.pyc
+
+# Runtime files
+backend/uploads/
+backend/outputs/
