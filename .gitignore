@@ -1,3 +1,13 @@
 node_modules/
 __pycache__/
 .env
+
+.venv/
+.pytest_cache/
+*.pyc
+.next/
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/outputs/*
+!backend/outputs/.gitkeep
+*.silent.mp4
