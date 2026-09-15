@@ -1,1 +1,35 @@
 name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install CPU-only dependencies (skip heavy torch/ultralytics for CI speed)
+        run: |
+          pip install fastapi "uvicorn[standard]" pillow opencv-python-headless \
+            numpy python-multipart redis rq pytest httpx
+
+      - name: Run tests
+        run: python -m pytest tests/ -v

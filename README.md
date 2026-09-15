@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Early%20Development-yellow?style=flat-square">
+  <img src="https://img.shields.io/badge/Status-Core%20Pipeline%20Working-brightgreen?style=flat-square">
   <img src="https://img.shields.io/badge/Python-3.10%2B-3B82F6?style=flat-square&logo=python&logoColor=white">
   <img src="https://img.shields.io/badge/FastAPI-Backend-3B82F6?style=flat-square&logo=fastapi&logoColor=white">
   <img src="https://img.shields.io/badge/Next.js-Frontend-3B82F6?style=flat-square&logo=nextdotjs&logoColor=white">
@@ -24,7 +24,7 @@
 
 The project is designed around a clean separation of concerns: a **FastAPI** backend exposes reframing endpoints, heavy processing (video/image transforms, subject tracking) runs on **background workers** (Redis + RQ) instead of blocking requests, and a **Next.js** frontend provides the upload/preview UI.
 
-> 🚧 **Status: early development.** The architecture and CI scaffolding are in place; the core reframing logic (YOLO-based subject tracking, video pipeline) is actively being built. See [Roadmap](#roadmap) below.
+> ✅ **Status: core pipeline implemented.** YOLO-based subject detection, image smart-crop, the async video reframe pipeline (OpenCV + ffmpeg), and the upload/preview UI are all working end-to-end. See [Roadmap](#roadmap) below for what's next (SAM masks, outpainting).
 
 <br>
 
@@ -46,18 +46,20 @@ The project is designed around a clean separation of concerns: a **FastAPI** bac
 
 ## Features
 
-**Planned / in progress:**
-- 🎯 Subject-aware reframing driven by object detection (YOLO)
-- 🖼️ Image reframing service (Pillow/OpenCV based crop & resize)
-- 🎞️ Video reframing service (ffmpeg-based pipeline with per-frame tracking)
-- ⚙️ Async job processing via Redis/RQ so uploads don't block the API
-- 🌐 Minimal web UI for uploading media and previewing results
+**Implemented:**
+- 🎯 Subject-aware image reframing driven by YOLO (Ultralytics) object detection — crops to a target ratio centered on the detected person/subject instead of a dumb center crop
+- 🖼️ Legacy portrait→landscape letterbox conversion (kept for backwards compatibility)
+- 📚 **Batch image reframing** — send up to `MAX_BATCH_FILES` (default 300) photos in one request via `/image/reframe-batch`; runs as a background job (same job_id + poll pattern as video) so a big batch doesn't block the API or time out the request, and one bad file doesn't fail the whole batch
+- 🎞️ Video reframing pipeline: YOLO tracks the subject every N frames, an exponential-smoothing filter keeps the crop window from jittering, OpenCV writes the cropped frames, and ffmpeg muxes the original audio back in
+- ⚙️ Async job processing via Redis/RQ — video and batch-image reframes are enqueued and polled by job id so uploads don't block the API
+- 🌐 Next.js UI with **Image** and **Video** tabs — single or multi-file image upload (single reframes inline, multiple runs as a polled batch job with a results grid), plus video upload with job-status polling and a before/after video preview
+- ✅ 27 backend tests (pytest) covering ratio parsing, crop-box math, subject selection, batch job logic, and the API endpoints (YOLO calls are mocked so the suite runs without a GPU or model download)
 - 🔁 CI pipelines for backend and frontend (GitHub Actions)
 
 **On the roadmap:**
-- YOLO-based subject detection & tracking
 - SAM (Segment Anything Model) for precise subject masks
 - Outpainting to fill extended canvas when reframing to a wider/taller ratio
+- Multi-subject framing (e.g. keep two speakers both in frame)
 
 <br>
 
@@ -121,26 +123,36 @@ npm run dev
 
 Frontend will be available at `http://localhost:3000`.
 
+Video reframe jobs need a worker running too:
+
+```bash
+cd backend
+python -m app.workers.queue
+```
+
+(and a local Redis instance — `redis-server`, or use the Docker setup below.)
+
 ### Full stack (Docker)
 
 ```bash
 docker-compose up --build
 ```
 
-> `docker-compose.yml` and service configs are still being fleshed out — expect this to evolve as the workers/storage layer is implemented.
+This starts `redis`, the FastAPI `api`, the RQ `worker`, the Next.js `frontend`, and an `nginx` reverse proxy on port 80 (`/` → frontend, `/api/` → backend).
 
 <br>
 
 ## Roadmap
 
-- [ ] Wire up `images.py` / `videos.py` endpoints to their respective services
-- [ ] Implement `image_reframe.py` (crop/resize with a fixed focal point)
-- [ ] Implement `yolo_tracker.py` for subject detection & tracking
-- [ ] Implement `video_reframe.py` (ffmpeg pipeline driven by tracked subject position)
+- [x] Wire up `images.py` / `videos.py` endpoints to their respective services
+- [x] Implement `image_reframe.py` (subject-aware crop, not just a fixed focal point)
+- [x] Implement `yolo_tracker.py` for subject detection & tracking
+- [x] Implement `video_reframe.py` (ffmpeg pipeline driven by tracked subject position)
+- [x] Flesh out `docker-compose.yml` (API, worker, Redis, nginx, frontend services)
+- [x] Build out the frontend upload/preview flow
 - [ ] Integrate SAM for pixel-accurate subject masks
 - [ ] Add outpainting for extending canvas on aspect-ratio mismatches
-- [ ] Flesh out `docker-compose.yml` (API, worker, Redis, nginx services)
-- [ ] Build out the frontend upload/preview flow beyond the current placeholder page
+- [ ] Multi-subject framing
 
 <br>
 
